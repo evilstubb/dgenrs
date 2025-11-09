@@ -67,6 +67,8 @@ struct optional_array_index {
   optional_array_index() : value(null) {}
   /// Automatic conversion from value_type to optional_array_index.
   optional_array_index(value_type v) : value(v) {}
+  /// Automatic conversion from safe_array_index to optional_array_index.
+  optional_array_index(safe_array_index<value_type> i) : value(i.value) {}
   /// Check if this index has the null value.
   bool is_null() const { return value == null; }
 };
@@ -184,10 +186,15 @@ public:
  *** Asset files. *************************************************************
  ******************************************************************************/
 
+/// A stream that reads from an asset file.
 class asset_file : public std::istream {
   std::unique_ptr<std::streambuf> m_streambuf;
 
 public:
+  /**
+   * \brief Open an asset file for reading.
+   * \throw fatal_error::decode if the file can't be opened
+   */
   explicit asset_file(const char *key);
 };
 

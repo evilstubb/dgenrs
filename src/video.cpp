@@ -4,11 +4,21 @@
 #include <iterator>
 #include <utility>
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "gles2.h"
 
 /******************************************************************************
  *** Texture system. **********************************************************
  ******************************************************************************/
+
+void sprite::set_texture(::texture::index texture, glm::vec2 pmin,
+                         glm::vec2 qdim) {
+  this->texture = texture;
+  texture_matrix = glm::scale(glm::translate(glm::mat4(1), glm::vec3(pmin, 0)),
+                              glm::vec3(qdim, 1));
+}
 
 class texture::data {
   /// This class gets its own reference to OpenGL function pointers.

@@ -17,7 +17,11 @@ all: bin/game
 clean:
 	rm -rf bin/
 
-.PHONY: all clean
+doc:
+	doxygen
+docs: doc
+
+.PHONY: all clean doc docs
 
 ################################################################################
 ### Compilation rules ##########################################################

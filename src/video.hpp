@@ -48,7 +48,20 @@ public:
   void upload_part(const_image_view iv, glm::uvec2 xy);
 };
 
-struct sprite {};
+/// Variables to draw 2D shapes on the screen.
+struct sprite {
+  glm::vec4 color = glm::vec4(1); ///< Multiply all pixels by this value.
+  glm::mat3 texture_matrix = glm::mat3(1); ///< Texture coordinate matrix.
+  ::texture::optional_index texture;       ///< Optional texture mapping.
+
+  /**
+   * \brief Set the texture and texture coordinate matrix.
+   * \param texture allocated texture object
+   * \param pmin texture coordinate quad minimum point (s, t)
+   * \param qdim texture coordinate quad dimensions
+   */
+  void set_texture(::texture::index texture, glm::vec2 pmin, glm::vec2 qdim);
+};
 
 /// Low-level OpenGL rendering system.
 class sys_video {
@@ -65,8 +78,11 @@ public:
   /// Clear the screen with the given color.
   void fill_screen(glm::vec4 color);
 
-  void draw_sprite(sprite sprite, glm::mat4 mvp,
-                   glm::vec4 color = glm::vec4(1));
+  /**
+   * \brief Draw the given sprite on the screen.
+   * \param mvp model-view-projection matrix
+   */
+  void draw_sprite(sprite sprite, glm::mat4 mvp);
 
   /// Get an unused OpenGL texture.
   texture new_texture();
