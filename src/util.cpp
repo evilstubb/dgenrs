@@ -50,7 +50,7 @@ void logger::print(const char *fmt, ...) {
  *** Asset files. *************************************************************
  ******************************************************************************/
 
-asset_file::asset_file(const char *key) {
+asset_file::asset_file(const char *key) : std::istream(nullptr) {
   auto buf = new std::filebuf;
   m_streambuf.reset(buf);
   if (buf->open(key, std::ios::in | std::ios::binary)) {

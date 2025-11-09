@@ -1,9 +1,5 @@
 #include "image.hpp"
 
-#include <exception>
-#include <optional>
-#include <utility>
-
 #include <png.h>
 
 #include "util.hpp"

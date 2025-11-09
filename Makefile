@@ -15,7 +15,7 @@ LDLIBS += $(shell pkgconf --libs $(DEPS))
 all: bin/game
 
 clean:
-	rm -rf bin/
+	rm -rf bin/ doc/
 
 doc:
 	doxygen
