@@ -39,7 +39,7 @@ private:
   index m_index;
 
 public:
-  texture(class data &d, index i) : m_data(d), m_index(i) {}
+  texture(data &d, index i) : m_data(d), m_index(i) {}
   operator index() const { return m_index; }
 
   /// Replace the contents of this texture.
@@ -50,9 +50,9 @@ public:
 
 /// Variables to draw 2D shapes on the screen.
 struct sprite {
-  glm::vec4 color = glm::vec4(1); ///< Multiply all pixels by this value.
-  glm::mat3 texture_matrix = glm::mat3(1); ///< Texture coordinate matrix.
-  ::texture::optional_index texture;       ///< Optional texture mapping.
+  glm::vec4 color = glm::vec4(1);    ///< Multiply all pixels by this value.
+  glm::mat3 texture_matrix;          ///< Texture coordinate matrix.
+  ::texture::optional_index texture; ///< Optional texture mapping.
 
   /**
    * \brief Set the texture and texture coordinate matrix.

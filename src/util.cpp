@@ -60,3 +60,19 @@ asset_file::asset_file(const char *key) {
     throw fatal_error::decode;
   }
 }
+
+std::unique_ptr<uint8_t[]> read_asset(size_t &num, const char *key) {
+  asset_file file(key);
+  file.seekg(0, std::ios::end);
+  num = file.tellg();
+  file.seekg(0, std::ios::beg);
+  // Add an extra null byte at the end.
+  auto mem = std::make_unique<uint8_t[]>(num + 1);
+  file.read(reinterpret_cast<char *>(mem.get()), num);
+  if (!file.good()) {
+    log_crit("Error reading asset file: %s", key);
+    throw fatal_error::decode;
+  }
+  mem[num] = 0;
+  return mem;
+}

@@ -7,6 +7,7 @@
 #define UTIL_HPP
 
 #include <cassert>
+#include <cstdint>
 #include <istream>
 #include <limits>
 #include <memory>
@@ -47,6 +48,7 @@ template <typename T> struct safe_array_index {
   using value_type = T;
   static_assert(std::is_integral_v<value_type>);
 
+  /// The array index stored in this class.
   value_type value;
   safe_array_index() {}
   safe_array_index(value_type v) : value(v) {}
@@ -62,6 +64,7 @@ struct optional_array_index {
   using value_type = T;
   static_assert(std::is_integral_v<value_type>);
 
+  /// The array index stored in this class.
   value_type value;
   /// Default initialization produces the null index.
   optional_array_index() : value(null) {}
@@ -193,9 +196,21 @@ class asset_file : public std::istream {
 public:
   /**
    * \brief Open an asset file for reading.
+   * \param key asset file name
    * \throw fatal_error::decode if the file can't be opened
    */
   explicit asset_file(const char *key);
 };
+
+/**
+ * \brief Read an entire asset file into memory.
+ *
+ * The resulting array is always null-terminated. The extra null byte is not
+ * reflected in the value written to num.
+ *
+ * \param[out] num total bytes read
+ * \param key asset file name
+ */
+std::unique_ptr<uint8_t[]> read_asset(size_t &num, const char *key);
 
 #endif

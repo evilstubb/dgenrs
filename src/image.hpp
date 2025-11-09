@@ -59,13 +59,10 @@ public:
       : m_kind(kind), m_width(w), m_height(h), m_stride(stride),
         m_pixels(std::forward<U>(pixels)) {}
 
-  // Needed to access the members of other specializations.
-  template <typename U> friend class basic_image_view;
-  /// Allow conversion between image view types.
-  template <typename U>
-  basic_image_view(const basic_image_view<U> &other)
-      : m_kind(other.m_kind), m_width(other.m_width), m_height(other.m_height),
-        m_stride(other.m_stride), m_pixels(other.m_pixels) {}
+  /// Allow conversion between certain image view types.
+  template <typename U> operator basic_image_view<U>() const {
+    return basic_image_view<U>(m_kind, m_width, m_height, m_stride, m_pixels);
+  }
 
   /// Get the format of the pixel buffer.
   image_type kind() const { return m_kind; }

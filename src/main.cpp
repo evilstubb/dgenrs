@@ -55,21 +55,22 @@ public:
 class app {
   window m_window;
   sys_video m_video;
-  texture::index m_texture;
+  sprite m_sprite;
 
 public:
   app() : m_video(SDL_GL_GetProcAddress) {
     texture texture = m_video.new_texture();
+    m_sprite.set_texture(texture, glm::vec2(0, 0), glm::vec2(1, 1));
     {
       asset_file file("test.png");
       image image = image::read_png(file);
       texture.upload(image);
     }
-    m_texture = texture;
   }
 
   SDL_AppResult tick() {
-    m_video.fill_screen(glm::vec4(1));
+    m_video.fill_screen(glm::vec4(1, 0, 1, 1));
+    m_video.draw_sprite(m_sprite, glm::mat4(1));
     if (SDL_GL_SwapWindow(m_window)) {
       return SDL_APP_CONTINUE;
     } else {
