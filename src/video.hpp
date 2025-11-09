@@ -6,8 +6,12 @@
 #ifndef VIDEO_HPP
 #define VIDEO_HPP
 
+#include <functional>
 #include <memory>
 
+#include <glm/glm.hpp>
+
+#include "image.hpp"
 #include "util.hpp"
 
 /// A reference to an allocated OpenGL texture.
@@ -37,7 +41,14 @@ private:
 public:
   texture(class data &d, index i) : m_data(d), m_index(i) {}
   operator index() const { return m_index; }
+
+  /// Replace the contents of this texture.
+  void upload(const_image_view iv);
+  /// Replace part of this texture with the given image.
+  void upload_part(const_image_view iv, glm::uvec2 xy);
 };
+
+struct sprite {};
 
 /// Low-level OpenGL rendering system.
 class sys_video {
@@ -45,8 +56,17 @@ class sys_video {
   std::unique_ptr<data> m_data;
 
 public:
-  sys_video();
+  /// An OpenGL function pointer.
+  using proc = void (*)();
+
+  explicit sys_video(std::function<proc(const char *)> get_proc_address);
   ~sys_video();
+
+  /// Clear the screen with the given color.
+  void fill_screen(glm::vec4 color);
+
+  void draw_sprite(sprite sprite, glm::mat4 mvp,
+                   glm::vec4 color = glm::vec4(1));
 
   /// Get an unused OpenGL texture.
   texture new_texture();

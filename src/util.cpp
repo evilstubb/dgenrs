@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdarg>
+#include <fstream>
 #include <iostream>
 
 #include <SDL3/SDL_iostream.h>
@@ -43,4 +44,19 @@ void logger::print(const char *fmt, ...) {
   va_start(args, fmt);
   SDL_IOvprintf(ios, fmt, args);
   va_end(args);
+}
+
+/******************************************************************************
+ *** Asset files. *************************************************************
+ ******************************************************************************/
+
+asset_file::asset_file(const char *key) {
+  auto buf = new std::filebuf;
+  m_streambuf.reset(buf);
+  if (buf->open(key, std::ios::in | std::ios::binary)) {
+    rdbuf(buf);
+  } else {
+    log_crit("Can't open asset file: %s", key);
+    throw fatal_error::decode;
+  }
 }

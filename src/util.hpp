@@ -7,7 +7,9 @@
 #define UTIL_HPP
 
 #include <cassert>
+#include <istream>
 #include <limits>
+#include <memory>
 #include <ostream>
 #include <string_view>
 #include <type_traits>
@@ -21,6 +23,8 @@
  * come from the standard library and most likely indicate memory bugs.
  */
 enum class fatal_error {
+  decode,         ///< There was an error reading data from a stream.
+  encode,         ///< There was an error writing data to a stream.
   initialization, ///< The application failed to start.
   resource_limit
 };
@@ -113,7 +117,7 @@ public:
 };
 
 /******************************************************************************
- *** Simple logging system. ***************************************************
+ *** Simple logging library. **************************************************
  ******************************************************************************/
 
 /// A stream that writes one message to the log.
@@ -175,5 +179,16 @@ public:
 #define log_warn(...) log_dyn_level(logger::warn, __VA_ARGS__)
 /// Write to the log with logger::crit level.
 #define log_crit(...) log_dyn_level(logger::crit, __VA_ARGS__)
+
+/******************************************************************************
+ *** Asset files. *************************************************************
+ ******************************************************************************/
+
+class asset_file : public std::istream {
+  std::unique_ptr<std::streambuf> m_streambuf;
+
+public:
+  explicit asset_file(const char *key);
+};
 
 #endif

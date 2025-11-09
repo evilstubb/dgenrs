@@ -1,28 +1,18 @@
 #include "video.hpp"
 
 #include <cassert>
-
-#include <SDL3/SDL_video.h>
+#include <iterator>
+#include <utility>
 
 #include "gles2.h"
 
-namespace {
-
-/// Load OpenGL function pointers during initialization.
-struct opengl_functions : GladGLES2Context {
-  opengl_functions() {
-    gladLoadGLES2Context(this, SDL_GL_GetProcAddress);
-    log_info("OpenGL vendor: %s", GetString(GL_VENDOR));
-    log_info("OpenGL renderer: %s", GetString(GL_RENDERER));
-    log_info("OpenGL version: %s", GetString(GL_VERSION));
-  }
-};
-
-} // namespace
+/******************************************************************************
+ *** Texture system. **********************************************************
+ ******************************************************************************/
 
 class texture::data {
   /// This class gets its own reference to OpenGL function pointers.
-  opengl_functions &gl;
+  GladGLES2Context &gl;
 
   static constexpr index::value_type MAX_TEXTURES = 128;
   /// Map texture::index to OpenGL texture objects.
@@ -39,7 +29,7 @@ public:
    *
    * \param gl OpenGL function pointers
    */
-  explicit data(opengl_functions &gl) : gl(gl) {
+  explicit data(GladGLES2Context &gl) : gl(gl) {
     gl.GenTextures(MAX_TEXTURES, textures);
     for (GLuint texture : textures) {
       gl.BindTexture(GL_TEXTURE_2D, texture);
@@ -75,24 +65,102 @@ public:
     map.remove(i.value);
   }
 
-  /// Map texture::index to OpenGL texture objects.
+private:
+  static unsigned guess_alignment(unsigned num) {
+    if (num % 8 == 0)
+      return 8;
+    else if (num % 4 == 0)
+      return 4;
+    else if (num % 2 == 0)
+      return 2;
+    else
+      return 1;
+  }
+
+  static void to_opengl_format(GLenum &format, GLenum &type, image_type kind) {
+    const struct {
+      GLenum format;
+      GLenum type;
+    } table[] = {
+        {GL_LUMINANCE, GL_UNSIGNED_BYTE},
+        {GL_RGB, GL_UNSIGNED_BYTE},
+        {GL_RGBA, GL_UNSIGNED_BYTE},
+    };
+    auto ikind = static_cast<unsigned>(kind);
+    assert(ikind < std::size(table));
+    format = table[ikind].format;
+    type = table[ikind].type;
+  }
+
+public:
   GLuint operator[](index i) {
     assert(i.value < MAX_TEXTURES);
     return textures[i.value];
   }
+
+  void upload(index i, const_image_view iv) {
+    gl.PixelStorei(GL_UNPACK_ALIGNMENT, guess_alignment(iv.stride()));
+    gl.BindTexture(GL_TEXTURE_2D, operator[](i));
+    GLenum format, type;
+    to_opengl_format(format, type, iv.kind());
+    gl.TexImage2D(GL_TEXTURE_2D, 0, format, iv.width(), iv.height(), 0, format,
+                  type, iv.pixel(0, 0));
+  }
+
+  void upload_part(index i, const_image_view iv, glm::uvec2 offset) {
+    gl.PixelStorei(GL_UNPACK_ALIGNMENT, guess_alignment(iv.stride()));
+    gl.BindTexture(GL_TEXTURE_2D, operator[](i));
+    GLenum format, type;
+    to_opengl_format(format, type, iv.kind());
+    gl.TexSubImage2D(GL_TEXTURE_2D, 0, offset.x, offset.y, iv.width(),
+                     iv.height(), format, type, iv.pixel(0, 0));
+  }
 };
+
+void texture::upload(const_image_view iv) { m_data.upload(m_index, iv); }
+
+void texture::upload_part(const_image_view iv, glm::uvec2 xy) {
+  m_data.upload_part(m_index, iv, xy);
+}
 
 struct sys_video::data {
-  opengl_functions gl;
+  GladGLES2Context gl;
   texture::data textures;
 
-  data() : textures(gl) {}
+  template <typename T>
+  explicit data(T &&func)
+      : gl(load_functions(std::forward<T>(func))), textures(gl) {}
+
   data(const data &other) = delete;
   data &operator=(const data &other) = delete;
+
+private:
+  template <typename T> static GladGLES2Context load_functions(T &&func) {
+    GladGLES2Context gl;
+    gladLoadGLES2ContextUserPtr(
+        &gl,
+        [](void *userptr, const char *name) {
+          T *func = static_cast<T *>(userptr);
+          return func->operator()(name);
+        },
+        &func);
+    log_info("OpenGL vendor: %s", gl.GetString(GL_VENDOR));
+    log_info("OpenGL renderer: %s", gl.GetString(GL_RENDERER));
+    log_info("OpenGL version: %s", gl.GetString(GL_VERSION));
+    return gl;
+  }
 };
 
-sys_video::sys_video() : m_data(new data) {}
+sys_video::sys_video(std::function<proc(const char *)> get_proc_address)
+    : m_data(new data(std::move(get_proc_address))) {}
+
 sys_video::~sys_video() {}
+
+void sys_video::fill_screen(glm::vec4 color) {
+  m_data->gl.ClearColor(color.r, color.g, color.b, color.a);
+  m_data->gl.Clear(GL_COLOR_BUFFER_BIT);
+}
+
 texture sys_video::new_texture() { return m_data->textures.new_texture(); }
 
 void sys_video::delete_texture(texture::index i) {

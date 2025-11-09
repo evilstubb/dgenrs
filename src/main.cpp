@@ -55,6 +55,28 @@ public:
 class app {
   window m_window;
   sys_video m_video;
+  texture::index m_texture;
+
+public:
+  app() : m_video(SDL_GL_GetProcAddress) {
+    texture texture = m_video.new_texture();
+    {
+      asset_file file("test.png");
+      image image = image::read_png(file);
+      texture.upload(image);
+    }
+    m_texture = texture;
+  }
+
+  SDL_AppResult tick() {
+    m_video.fill_screen(glm::vec4(1));
+    if (SDL_GL_SwapWindow(m_window)) {
+      return SDL_APP_CONTINUE;
+    } else {
+      log_crit("SDL_GL_SwapWindow: %s", SDL_GetError());
+      return SDL_APP_FAILURE;
+    }
+  }
 };
 
 } // namespace
@@ -100,8 +122,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
-  (void)appstate;
-  return SDL_APP_CONTINUE;
+  return static_cast<app *>(appstate)->tick();
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
