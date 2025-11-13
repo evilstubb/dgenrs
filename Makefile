@@ -4,15 +4,15 @@ ALLFLAGS += -Wall -Wextra -Wpedantic
 CFLAGS += -MD -std=c17 -g $(ALLFLAGS)
 CXXFLAGS += -MD -std=c++17 -g $(ALLFLAGS)
 
-DEPS += libpng sdl3
-CPPFLAGS += $(shell pkgconf --cflags $(DEPS))
-LDLIBS += $(shell pkgconf --libs $(DEPS))
+DEPS += freetype2 harfbuzz libpng sdl3
+CPPFLAGS += $(shell pkgconf --cflags $(PKGFLAGS) $(DEPS))
+LDLIBS += $(shell pkgconf --libs $(PKGFLAGS) $(DEPS))
 
 ################################################################################
 ### Main targets ###############################################################
 ################################################################################
 
-all: bin/game
+all: bin/game.exe
 
 clean:
 	rm -rf bin/ doc/
@@ -38,5 +38,5 @@ SOURCES = $(wildcard src/*.c src/*.cpp)
 OBJECTS = $(SOURCES:src/%=bin/obj/%.o)
 -include $(OBJECTS:.o=.d)
 
-bin/game: $(OBJECTS)
+bin/game.exe: $(OBJECTS)
 	$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@

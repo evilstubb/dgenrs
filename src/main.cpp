@@ -1,5 +1,3 @@
-#include <exception>
-
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -55,27 +53,34 @@ public:
 class app {
   window m_window;
   sys_video m_video;
-  sprite m_sprite;
+  text::index m_text;
 
 public:
   app() : m_video(SDL_GL_GetProcAddress) {
-    texture texture = m_video.new_texture();
-    m_sprite.set_texture(texture, glm::vec2(0, 0), glm::vec2(1, 1));
-    {
-      asset_file file("test.png");
-      image image = image::read_png(file);
-      texture.upload(image);
+    text t = m_video.new_text();
+    text::layout layout;
+    t.set_string(layout, "Hello", 16);
+    m_text = t;
+  }
+
+  bool handle_event(SDL_Event event) {
+    switch (event.type) {
+    case SDL_EVENT_QUIT:
+      return false;
+    case SDL_EVENT_WINDOW_RESIZED:
+      m_video.set_viewport(0, 0, event.window.data1, event.window.data2);
+      return true;
+    default:
+      return true;
     }
   }
 
-  SDL_AppResult tick() {
+  void tick() {
     m_video.fill_screen(glm::vec4(1, 0, 1, 1));
-    m_video.draw_sprite(m_sprite, glm::mat4(1));
-    if (SDL_GL_SwapWindow(m_window)) {
-      return SDL_APP_CONTINUE;
-    } else {
+    m_video[m_text].draw(glm::vec4(1), glm::mat4(1));
+    if (!SDL_GL_SwapWindow(m_window)) {
       log_crit("SDL_GL_SwapWindow: %s", SDL_GetError());
-      return SDL_APP_FAILURE;
+      throw fatal_error::platform;
     }
   }
 };
@@ -123,19 +128,33 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
-  return static_cast<app *>(appstate)->tick();
+  auto app = static_cast<class app *>(appstate);
+  try {
+    app->tick();
+    return SDL_APP_CONTINUE;
+  } catch (...) {
+    delete app;
+    SDL_Quit();
+    throw;
+  }
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-  (void)appstate;
-  if (event->type == SDL_EVENT_QUIT)
-    return SDL_APP_SUCCESS;
-  else
-    return SDL_APP_CONTINUE;
+  auto app = static_cast<class app *>(appstate);
+  try {
+    if (app->handle_event(*event))
+      return SDL_APP_CONTINUE;
+    else
+      return SDL_APP_SUCCESS;
+  } catch (...) {
+    delete app;
+    SDL_Quit();
+    throw;
+  }
 }
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result) {
-  delete static_cast<app *>(appstate);
-  if (result != SDL_APP_SUCCESS)
-    std::terminate();
+  (void)result;
+  auto app = static_cast<class app *>(appstate);
+  delete app;
 }

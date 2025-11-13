@@ -14,6 +14,63 @@
 #include "image.hpp"
 #include "util.hpp"
 
+/// Render text with OpenGL (and FreeType and HarfBuzz).
+class text {
+public:
+  class data;
+
+  /**
+   * \brief A type-safe text reference that can be stored.
+   *
+   * It's not ideal to store instances of the text class because each has its
+   * own reference to the text system data. Instead, store optional_index.
+   */
+  struct index : safe_array_index<unsigned> {
+    using safe_array_index<unsigned>::safe_array_index;
+  };
+
+  /// A text index that hasn't been checked for null.
+  struct optional_index : optional_array_index<unsigned> {
+    using optional_array_index<unsigned>::optional_array_index;
+  };
+
+private:
+  data &m_data;
+  index m_index;
+
+public:
+  text(data &d, index i) : m_data(d), m_index(i) {}
+  operator index() const { return m_index; }
+
+  /// Text rendering feedback which may be useful for layout purposes.
+  struct layout {
+    unsigned lines; ///< Line count, accounting for text wrapping.
+    glm::vec2 pmin; ///< Bounding box minimum point in pixels.
+    glm::vec2 qdim; ///< Bounding box dimensions in pixels.
+  };
+
+  /**
+   * \brief Change the rendered string and font size.
+   *
+   * If clipping is used, glyphs that partially intersect the clipping plane
+   * won't be clipped. Calling code is responsible for pixel-accurate clipping.
+   *
+   * \param[out] layout
+   * \param str new text to render
+   * \param pt font size in points (1/72 inches)
+   * \param clip optionally clip glyphs past this height in pixels
+   * \param wrap optionally wrap lines at this width in pixels
+   */
+  bool set_string(layout &result, const char *str, float pt, float clip = 0,
+                  float wrap = 0);
+
+  /**
+   * \brief Render the current string with OpenGL.
+   * \param mvp model-view-projection matrix
+   */
+  void draw(glm::vec4 color, glm::mat4 mvp);
+};
+
 /// A reference to an allocated OpenGL texture.
 class texture {
 public:
@@ -83,6 +140,14 @@ public:
    * \param mvp model-view-projection matrix
    */
   void draw_sprite(sprite sprite, glm::mat4 mvp);
+
+  /// Change the OpenGL viewport.
+  void set_viewport(unsigned x, unsigned y, unsigned w, unsigned h);
+
+  text new_text();
+  void delete_text(text::index i);
+  text operator[](text::index i);
+  void scale_text(float c);
 
   /// Get an unused OpenGL texture.
   texture new_texture();

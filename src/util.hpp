@@ -27,8 +27,26 @@ enum class fatal_error {
   decode,         ///< There was an error reading data from a stream.
   encode,         ///< There was an error writing data to a stream.
   initialization, ///< The application failed to start.
-  resource_limit
+  resource_limit, ///< The built-in resource limit was triggered.
+  platform        ///< A platform-specific API call failed.
 };
+
+/**
+ * \brief Helper to create visitor objects with overloads.
+ *
+ * ```cpp
+ * std::variant<int, float> v = ...;
+ * std::visit(overload(
+ *   [](int i) { cout << "int: " << i << endl; },
+ *   [](float f) { cout << "float: " << f << endl; }), v);
+ * ```
+ */
+template <typename... Args> auto overload(Args &&...args) {
+  struct result : Args... {
+    using Args::operator()...;
+  };
+  return result{std::forward<Args>(args)...};
+}
 
 /**
  * \brief A base class for type-safe array indices.
@@ -85,7 +103,7 @@ struct optional_array_index {
  * \tparam T array index type (integer)
  * \tparam num array capacity (maximum index value)
  */
-template <typename T, T num> class static_int_map {
+template <typename T, T num> class static_int_set {
 public:
   using value_type = T;
   static_assert(std::is_integral_v<value_type>);
