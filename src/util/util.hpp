@@ -6,6 +6,7 @@
 #ifndef UTIL_HPP
 #define UTIL_HPP
 
+#include <istream>
 #include <ostream>
 #include <utility>
 
@@ -101,20 +102,57 @@ public:
 /// Write to the log with logger::crit level.
 #define log_crit(...) log_dyn_level(Logger::Crit, __VA_ARGS__)
 
-/**
- * \brief Allows std::istream to read from regular memory.
- *
- * ```cpp
- * const char data[] = "Hello, world!";
- * ReadMemory buf(data, sizeof(data) - 1); // null termination!
- * std::istream is(&buf); // now read from the stream!
- * ```
- */
-class ReadMemory : public std::streambuf {
+/// Adapter to read from memory with C++ streams.
+class ReadMemory : public std::istream {
+  class StreamBuffer : public std::streambuf {
+    const void *m_data;
+    size_t m_size;
+
+  public:
+    StreamBuffer(const void *p, size_t n) : m_data(p), m_size(n) {
+      auto base = reinterpret_cast<char *>(const_cast<void *>(m_data));
+      setg(base, base, base + m_size);
+    }
+
+  protected:
+    pos_type seekoff(off_type off, seekdir dir, openmode which) override {
+      char *req;
+      switch (dir) {
+      case cur:
+        req = off + gptr();
+        break;
+      case end:
+        req = off + egptr();
+        break;
+      default:
+        return seekpos(off, which);
+      }
+      if (eback() <= req && req <= egptr()) {
+        setg(eback(), req, egptr());
+        return req - eback();
+      } else {
+        return pos_type(off_type(-1));
+      }
+    }
+
+    pos_type seekpos(pos_type pos, openmode which) override {
+      (void)which;
+      if (static_cast<size_t>(pos) <= m_size) {
+        auto base = reinterpret_cast<char *>(const_cast<void *>(m_data));
+        setg(base, base + pos, base + m_size);
+        return pos;
+      } else {
+        return pos_type(off_type(-1));
+      }
+    }
+  };
+
+  StreamBuffer m_streambuf;
+
 public:
-  ReadMemory(const void *p, size_t n) {
-    auto base = static_cast<char *>(const_cast<void *>(p));
-    setg(base, base, base + n);
+  /// Create a stream that reads from main memory.
+  ReadMemory(const void *p, size_t n) : m_streambuf(p, n) {
+    rdbuf(&m_streambuf);
   }
 };
 
