@@ -103,7 +103,7 @@ public:
 #define log_crit(...) log_dyn_level(Logger::Crit, __VA_ARGS__)
 
 /// Adapter to read from memory with C++ streams.
-class ReadMemory : public std::istream {
+class MemoryBuffer : public std::istream {
   class StreamBuffer : public std::streambuf {
     const void *m_data;
     size_t m_size;
@@ -147,12 +147,12 @@ class ReadMemory : public std::istream {
     }
   };
 
-  StreamBuffer m_streambuf;
+  StreamBuffer m_underlying;
 
 public:
   /// Create a stream that reads from main memory.
-  ReadMemory(const void *p, size_t n) : m_streambuf(p, n) {
-    rdbuf(&m_streambuf);
+  MemoryBuffer(const void *p, size_t n) : m_underlying(p, n) {
+    rdbuf(&m_underlying);
   }
 };
 

@@ -110,7 +110,7 @@ class AssetSystem::Data {
             return traits_type::eof();
           }
           m_data.seekg(m_off_pos, std::ios::beg);
-          m_data.read(m_storage, //
+          m_data.read(m_storage, // don't read past local file
                       std::min(m_off_end - m_off_pos,
                                std::streamsize(sizeof(m_storage))));
           if (!m_data.gcount()) {
@@ -156,12 +156,78 @@ class AssetSystem::Data {
         }
       };
 
-      StreamBuffer m_streambuf;
+      StreamBuffer m_underlying;
 
     public:
       CatStream(std::istream &data, pos_type beg, pos_type end)
-          : m_streambuf(data, beg, end) {
-        rdbuf(&m_streambuf);
+          : m_underlying(data, beg, end) {
+        rdbuf(&m_underlying);
+      }
+    };
+
+    class DeflateStream : public std::istream {
+      class StreamBuffer : public std::streambuf {
+        std::istream &m_data;
+        pos_type m_off_beg;
+        pos_type m_off_end;
+        pos_type m_off_pos;
+        z_stream m_zlib;
+        char m_storage[4096];
+
+      public:
+        StreamBuffer(std::istream &data, pos_type beg, pos_type end)
+            : m_data(data), m_off_beg(beg), m_off_end(end), m_off_pos(beg) {
+          memset(&m_zlib, 0, sizeof m_zlib);
+          int status = inflateInit2(&m_zlib, -MAX_WBITS); // raw deflate
+          if (status != Z_OK) {
+            if (m_zlib.msg)
+              log_crit("inflateInit: %s", m_zlib.msg);
+            else
+              log_crit("inflateInit: code %d", status);
+            throw FatalError::Decode;
+          }
+        }
+
+        StreamBuffer(const StreamBuffer &other) = delete;
+        StreamBuffer &operator=(const StreamBuffer &other) = delete;
+        ~StreamBuffer() { inflateEnd(&m_zlib); }
+
+        int_type underflow() override {
+          if (m_off_end <= m_off_pos) {
+            setg(nullptr, nullptr, nullptr);
+            return traits_type::eof();
+          }
+          // Read compressed data into this temporary buffer.
+          char mem[4096];
+          m_data.seekg(m_off_pos, std::ios::beg);
+          m_data.read(
+              mem, // don't read past local file
+              std::min(m_off_end - m_off_pos, std::streamsize(sizeof(mem))));
+          if (!m_data.gcount()) {
+            setg(nullptr, nullptr, nullptr);
+            return traits_type::eof();
+          }
+          m_off_pos = m_data.tellg();
+          //TODO
+          m_zlib.next_in = reinterpret_cast<unsigned char *>(mem);
+          m_zlib.avail_in = m_data.gcount();
+          m_zlib.next_out = reinterpret_cast<unsigned char *>(m_storage);
+          m_zlib.avail_out = sizeof(m_storage);
+          int status = inflate(&m_zlib, Z_NO_FLUSH);
+        }
+
+        // pos_type seekoff(off_type off, seekdir dir, openmode which) override
+        // {}
+
+        // pos_type seekpos(pos_type pos, openmode which) override {}
+      };
+
+      StreamBuffer m_underlying;
+
+    public:
+      DeflateStream(std::istream &data, pos_type beg, pos_type end)
+          : m_underlying(data, beg, end) {
+        rdbuf(&m_underlying);
       }
     };
 
@@ -187,6 +253,9 @@ class AssetSystem::Data {
       switch (compression) {
       case 0:
         return std::make_unique<CatStream>(m_file, base, base + decode_size);
+      case 8:
+        return std::make_unique<DeflateStream>(m_file, base,
+                                               base + decode_size);
       default:
         log_crit("Unsupported compression method: %u", compression);
         throw FatalError::Decode;
